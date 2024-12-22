@@ -1,0 +1,288 @@
+#!/usr/bin/env python3
+"""
+==============================================================================
+UAE Rent Forecasting with Time Series: Main Orchestrator Script
+==============================================================================
+This script provides a command-line interface to manage:
+
+    (1) Data Preprocessing 
+        - e.g., cleaning raw time-series data of monthly or weekly rental prices
+    (2) Model Training
+        - Potentially train ARIMA, Prophet, LSTM, or other time-series models 
+        - Save the trained model to the 'models/' directory
+    (3) Forecast Generation
+        - Produce future rent forecasts over a specified horizon
+        - Output predictions to console or a CSV file
+    (4) Optional hyperparameter tuning
+    (5) Logging, debugging modes, GPU usage (if relevant, e.g., for LSTM)
+
+Example Commands:
+    python main.py preprocess --input data/monthly_rent_data.csv --output data/cleaned_monthly_rent.csv
+    python main.py train --model prophet --epochs 10 --verbose
+    python main.py forecast --model prophet --horizon 12
+    python main.py train --model lstm --gpu
+    python main.py forecast --model arima --horizon 6 --output forecast_results.csv
+
+Repository Structure Assumption:
+    uae-rent-forecasting/
+    ├── data/
+    │    ├── monthly_rent_data.csv
+    │    └── cleaned_monthly_rent.csv
+    ├── models/
+    │    └── rent_forecast_model.pkl   (or .h5 for LSTM, etc.)
+    ├── src/
+    │    ├── data_preprocessing.py
+    │    ├── train_model.py
+    │    ├── forecast.py
+    │    └── utils.py
+    ├── tests/
+    ├── docs/
+    ├── animations/
+    ├── .gitignore
+    ├── LICENSE
+    ├── README.md
+    └── requirements.txt
+
+Author: Your Name
+Date: YYYY-MM-DD
+Contact: your.email@example.com
+License: MIT (or other)
+==============================================================================
+"""
+
+import argparse
+import logging
+import os
+import sys
+import time
+
+# Hypothetical imports from local modules (adjust to your actual file structure)
+# from src.data_preprocessing import clean_rent_data
+# from src.train_model import train_ts_model, tune_ts_model
+# from src.forecast import generate_forecast
+
+###############################################################################
+# Setup Logging
+###############################################################################
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+
+###############################################################################
+# Main CLI
+###############################################################################
+
+def main():
+    """
+    Main CLI for the UAE Rent Forecasting pipeline, orchestrating:
+    - Data Preprocessing (cleaning and structuring time-series data)
+    - Model Training (ARIMA, Prophet, LSTM, etc.)
+    - Forecast Generation (producing future rent predictions)
+    - Optional GPU usage (likely for LSTM or other deep learning approaches)
+    - Logging / verbosity flags
+    """
+
+    parser = argparse.ArgumentParser(
+        prog="UAE-Rent-Forecasting",
+        description="Command-line interface for data prep, time-series model training, and forecasting of UAE rents."
+    )
+
+    subparsers = parser.add_subparsers(
+        title="Subcommands",
+        description="Choose one of the available subcommands for your time-series workflow",
+        dest="subcommand",
+        required=True
+    )
+
+    #------------------------------------------------------------------------
+    # Subcommand: preprocess
+    #------------------------------------------------------------------------
+    parser_preprocess = subparsers.add_parser(
+        "preprocess",
+        help="Clean and structure the raw rent data for further modeling."
+    )
+    parser_preprocess.add_argument(
+        "--input",
+        type=str,
+        default="data/monthly_rent_data.csv",
+        help="Path to the raw time-series data (CSV)."
+    )
+    parser_preprocess.add_argument(
+        "--output",
+        type=str,
+        default="data/cleaned_monthly_rent.csv",
+        help="Output CSV path for cleaned data."
+    )
+    parser_preprocess.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable verbose logging."
+    )
+
+    #------------------------------------------------------------------------
+    # Subcommand: train
+    #------------------------------------------------------------------------
+    parser_train = subparsers.add_parser(
+        "train",
+        help="Train a time-series forecasting model (ARIMA, Prophet, LSTM, etc.)."
+    )
+    parser_train.add_argument(
+        "--model",
+        type=str,
+        default="prophet",
+        choices=["arima", "prophet", "lstm", "other"],
+        help="Which model type to train."
+    )
+    parser_train.add_argument(
+        "--epochs",
+        type=int,
+        default=10,
+        help="Number of training epochs (relevant for certain models like LSTM)."
+    )
+    parser_train.add_argument(
+        "--tune",
+        action="store_true",
+        help="Enable hyperparameter tuning routine for the chosen model."
+    )
+    parser_train.add_argument(
+        "--gpu",
+        action="store_true",
+        help="Use GPU (relevant if using LSTM or deep learning)."
+    )
+    parser_train.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable verbose logging."
+    )
+
+    #------------------------------------------------------------------------
+    # Subcommand: forecast
+    #------------------------------------------------------------------------
+    parser_forecast = subparsers.add_parser(
+        "forecast",
+        help="Generate rent forecasts over a specified horizon using a trained model."
+    )
+    parser_forecast.add_argument(
+        "--model",
+        type=str,
+        default="prophet",
+        choices=["arima", "prophet", "lstm", "other"],
+        help="Which trained model to use for forecasting."
+    )
+    parser_forecast.add_argument(
+        "--horizon",
+        type=int,
+        default=12,
+        help="Forecast horizon in months (or weeks, depending on data)."
+    )
+    parser_forecast.add_argument(
+        "--output",
+        type=str,
+        default="forecast_results.csv",
+        help="Output CSV file to store forecast values."
+    )
+    parser_forecast.add_argument(
+        "--gpu",
+        action="store_true",
+        help="Use GPU if the model is a deep learning approach (e.g., LSTM)."
+    )
+    parser_forecast.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable verbose logging."
+    )
+
+    # Parse the arguments
+    args = parser.parse_args()
+
+    # Optional timing
+    start_time = time.time()
+
+    # Verbosity
+    if args.subcommand and getattr(args, "verbose", False):
+        logging.getLogger().setLevel(logging.DEBUG)
+        logging.debug("Verbose logging enabled.")
+
+    #------------------------------------------------------------------------
+    # Subcommand Handling
+    #------------------------------------------------------------------------
+    if args.subcommand == "preprocess":
+        handle_preprocess(args)
+    elif args.subcommand == "train":
+        handle_train(args)
+    elif args.subcommand == "forecast":
+        handle_forecast(args)
+    else:
+        logging.error(f"Unknown subcommand: {args.subcommand}")
+        parser.print_help()
+        sys.exit(1)
+
+    elapsed = time.time() - start_time
+    logging.info(f"Total execution time: {elapsed:.2f} seconds")
+
+
+###############################################################################
+# Subcommand Handlers
+###############################################################################
+
+def handle_preprocess(args):
+    """
+    Handler for 'preprocess' subcommand:
+    - Cleans raw data from --input CSV
+    - Deals with missing values, outliers, date formatting
+    - Outputs a cleaned CSV to --output
+    """
+    logging.info("Starting data preprocessing step for UAE rent time-series...")
+    logging.info(f"Input CSV: {args.input}, Output CSV: {args.output}")
+
+    # Example placeholder function call:
+    # clean_rent_data(input_csv=args.input, output_csv=args.output)
+
+    logging.info("Preprocessing complete. (Placeholder code here)")
+
+def handle_train(args):
+    """
+    Handler for 'train' subcommand:
+    - Loads the cleaned data (by default from 'data/cleaned_monthly_rent.csv')
+    - Depending on --model (arima, prophet, lstm), train the chosen model
+    - If --tune, run a hyperparameter search
+    - If --gpu, use GPU resources if applicable
+    - Save trained model to 'models/rent_forecast_model.(pkl/h5/etc.)'
+    """
+    logging.info(f"Training time-series model: {args.model}")
+    logging.info(f"Epochs={args.epochs}, Tune={args.tune}, GPU={args.gpu}")
+
+    if args.tune:
+        logging.info("Hyperparameter tuning is enabled. Running the tuning routine...")
+        # tune_ts_model(model_type=args.model, use_gpu=args.gpu)
+        # e.g. run a grid search or Bayesian search for best ARIMA p,d,q or best Prophet params
+
+    # train_ts_model(model_type=args.model, epochs=args.epochs, use_gpu=args.gpu)
+    logging.info("Model training finished. Model saved in './models/' (Placeholder).")
+
+def handle_forecast(args):
+    """
+    Handler for 'forecast' subcommand:
+    - Loads the trained model from 'models/'
+    - Generates a forecast for --horizon months/weeks
+    - Optionally uses GPU if it's a deep learning model
+    - Writes results to --output (CSV)
+    """
+    logging.info(f"Generating forecast with model={args.model}, horizon={args.horizon}")
+    logging.info(f"Output file: {args.output}, GPU={args.gpu}")
+
+    # e.g. future_df = generate_forecast(model_type=args.model, horizon=args.horizon, use_gpu=args.gpu)
+    # future_df.to_csv(args.output, index=False)
+
+    logging.info("Forecast generation complete. Results saved to output CSV. (Placeholder).")
+
+
+###############################################################################
+# Main Guard
+###############################################################################
+
+if __name__ == "__main__":
+    main()
